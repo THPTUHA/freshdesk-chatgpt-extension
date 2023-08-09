@@ -6,8 +6,6 @@ import rehypeHighlight from 'rehype-highlight'
 import Browser from 'webextension-polyfill'
 import { captureEvent } from '../analytics'
 import { Answer } from '../messaging'
-import ChatGPTFeedback from './ChatGPTFeedback'
-import { isBraveBrowser, shouldShowRatingTip } from './utils.js'
 
 export type QueryStatus = 'success' | 'error' | undefined
 
@@ -20,29 +18,32 @@ function ChatGPTQuery(props: Props) {
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
   const [done, setDone] = useState(false)
-  const [showTip, setShowTip] = useState(false)
   const [status, setStatus] = useState<QueryStatus>()
   const [question, setQuestion] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     props.onStatusChange?.(status)
   }, [props, status])
 
   useEffect(() => {
-    if (!question) return;
+    setLoading(true);
     const port = Browser.runtime.connect()
     const listener = (msg: any) => {
+      setLoading(false);
       if (msg.text) {
         setAnswer(msg)
         setStatus('success')
       } else if (msg.error) {
-        setError(msg.error)
-        setStatus('error')
+        if(msg.error !== 'QUESTION EMPTY'){
+          setError(msg.error)
+          setStatus('error')
+        }
       } else if (msg.event === 'DONE') {
         setDone(true)
       }
     }
+
     port.onMessage.addListener(listener)
     port.postMessage({ question: question })
     return () => {
@@ -51,7 +52,6 @@ function ChatGPTQuery(props: Props) {
     }
   }, [question, retry])
 
-  // retry error on focus
   useEffect(() => {
     const onFocus = () => {
       if (error && (error == 'UNAUTHORIZED' || error === 'CLOUDFLARE')) {
@@ -67,10 +67,6 @@ function ChatGPTQuery(props: Props) {
   }, [error])
 
   useEffect(() => {
-    shouldShowRatingTip().then((show) => setShowTip(show))
-  }, [])
-
-  useEffect(() => {
     if (status === 'success') {
       captureEvent('show_answer', { host: location.host, language: navigator.language })
     }
@@ -80,6 +76,34 @@ function ChatGPTQuery(props: Props) {
     Browser.runtime.sendMessage({ type: 'OPEN_OPTIONS_PAGE' })
   }, [])
 
+  const summarize = ()=>{
+    const chat = document.getElementById("aw-chat-wrapper");
+        if (chat) {
+          const messages = chat.getElementsByClassName("chat-container-wrap")
+          const data = [];
+
+          for(const message of messages){
+            console.log(message)
+            let name = "", content = "";
+            if(message.children.length == 2){
+              name = message.children[0].innerHTML.replace(/<[^>]*>/g, "").replace(/\n/g, ' ').trim();
+              content =  message.children[1].getElementsByClassName("user-messages")[0].innerHTML.replace(/<[^>]*>/g, "").replace(/\n/g, ' ').trim();
+            }else if(message.children.length == 1 && data.length){
+              content = message.children[0].getElementsByClassName("user-messages")[0].innerHTML.replace(/<[^>]*>/g, "").replace(/\n/g, ' ').trim();
+            }
+            data.push({
+              name: name,
+              content: content
+            })
+          }
+
+          const require = "Tóm tắt ý chính cuộc hội thoại sau \n";
+          const q = data.map(item=> item.name + ": "+ item.content).join("\n");
+          console.log(require + q)
+          setQuestion(require + q);
+        }
+  }
+  
   if (answer && question) {
     return (
       <div className="markdown-body gpt-markdown" id="gpt-answer" dir="auto">
@@ -87,17 +111,12 @@ function ChatGPTQuery(props: Props) {
           <span className="cursor-pointer leading-[0]" onClick={openOptionsPage}>
             <GearIcon size={14} />
           </span>
-          <ChatGPTFeedback
-            messageId={answer.messageId}
-            conversationId={answer.conversationId}
-            answerText={answer.text}
-          />
         </div>
         <ReactMarkdown rehypePlugins={[[rehypeHighlight, { detect: true }]]}>
           {answer.text}
         </ReactMarkdown>
-        {done && showTip && (
-          <div>Continue</div>
+        {done  && (
+          <button onClick={summarize}>Summarize</button>
         )}
       </div>
     )
@@ -106,29 +125,18 @@ function ChatGPTQuery(props: Props) {
   if (error === 'UNAUTHORIZED' || error === 'CLOUDFLARE') {
     return (
       <p>
-        Please login and pass Cloudflare check at{' '}
+        Please login chatgpt
         <a href="https://chat.openai.com" target="_blank" rel="noreferrer">
           chat.openai.com
         </a>
         {retry > 0 &&
           (() => {
-            if (isBraveBrowser()) {
-              return (
-                <span className="block mt-2">
-                  Still not working? Follow{' '}
-                  <a href="https://github.com/wong2/chat-gpt-google-extension#troubleshooting">
-                    Brave Troubleshooting
-                  </a>
-                </span>
-              )
-            } else {
-              return (
-                <span className="italic block mt-2">
-                  OpenAI requires passing a security check every once in a while. If this keeps
-                  happening, change AI provider to OpenAI API in the extension options.
-                </span>
-              )
-            }
+            return (
+              <span className="italic block mt-2">
+                OpenAI requires passing a security check every once in a while. If this keeps
+                happening, change AI provider to OpenAI API in the extension options.
+              </span>
+            )
           })()}
       </p>
     )
@@ -146,26 +154,7 @@ function ChatGPTQuery(props: Props) {
     return <p className="text-[#b6b8ba] animate-pulse">Waiting for ChatGPT response...</p>
   }
   return (
-    <button onClick={()=>{
-          const chat = document.getElementById("aw-chat-wrapper");
-        if (chat) {
-          const messages = chat.getElementsByClassName("chat-container-wrap")
-          const data = [];
-          
-          for(const message of messages){
-            const name = message.children[0].innerHTML.replace(/<[^>]*>/g, "").replace(/\n/g, ' ').trim();
-            const content =  message.children[1].getElementsByClassName("user-messages")[0].innerHTML.replace(/<[^>]*>/g, "").replace(/\n/g, ' ').trim();
-            data.push({
-              name: name,
-              content: content
-            })
-          }
-          const require = "Tóm tắt ý chính cuộc hội thoại sau \n";
-          const q = data.map(item=> item.name + ": "+ item.content).join("\n");
-          console.log(require + q)
-          setQuestion(require + q);
-        }
-    }}>Summarize</button>
+    <button onClick={summarize}>Summarize</button>
   )
 }
 

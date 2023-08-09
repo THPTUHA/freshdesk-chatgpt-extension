@@ -19,7 +19,7 @@ function ChatGPTContainer(props: Props) {
   )
   return (
     <>
-      <div className="chat-gpt-card">
+      <div className="leading-10" style={{height:"200px",overflow:'scroll', backgroundColor:'green',padding:'1rem'}}>
         <ChatGPTCard
           triggerMode={props.triggerMode}
           onStatusChange={setQueryStatus}

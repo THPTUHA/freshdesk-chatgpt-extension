@@ -6,10 +6,13 @@ import { Provider } from './types'
 
 async function generateAnswers(port: Browser.Runtime.Port, question: string) {
   const providerConfigs = await getProviderConfigs()
-
+  const token = await getChatGPTAccessToken()
+  if(!question){
+    throw new Error('QUESTION EMPTY')
+  }
   let provider: Provider
   if (providerConfigs.provider === ProviderType.ChatGPT) {
-    const token = await getChatGPTAccessToken()
+   
     provider = new ChatGPTProvider(token)
   } else if (providerConfigs.provider === ProviderType.GPT3) {
     const { apiKey, model } = providerConfigs.configs[ProviderType.GPT3]!
@@ -39,7 +42,6 @@ async function generateAnswers(port: Browser.Runtime.Port, question: string) {
 
 Browser.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener(async (msg) => {
-    console.debug('received msg', msg)
     try {
       await generateAnswers(port, msg.question)
     } catch (err: any) {
