@@ -1,53 +1,42 @@
-import { CssBaseline, GeistProvider, Radio, Select, Text, Toggle, useToasts } from '@geist-ui/core'
-import { capitalize } from 'lodash-es'
-import { useCallback, useEffect, useMemo, useState } from 'preact/hooks'
+import { Button, CssBaseline, GeistProvider, Radio, Text, useToasts } from '@geist-ui/core'
+import { useCallback, useEffect, useState } from 'preact/hooks'
 import '../base.css'
 import {
+  ENGINE_TEXT,
+  Engine,
   getUserConfig,
-  Language,
-  Theme,
-  TriggerMode,
-  TRIGGER_MODE_TEXT,
   updateUserConfig,
 } from '../config'
 import logo from '../logo.png'
-import { detectSystemColorScheme, getExtensionVersion } from '../utils'
-import ProviderSelect from './ProviderSelect'
+import {getExtensionVersion } from '../utils'
 
-function OptionsPage(props: { theme: Theme; onThemeChange: (theme: Theme) => void }) {
-  const [triggerMode, setTriggerMode] = useState<TriggerMode>(TriggerMode.Always)
-  const [language, setLanguage] = useState<Language>(Language.Auto)
+function OptionsPage() {
+  const [engine, setEngine] = useState<Engine>(Engine.Account)
+  const [query, setQuery] = useState<string>("")
+  const [queryDirty, setQueryDirty] = useState(false);
+
   const { setToast } = useToasts()
 
   useEffect(() => {
     getUserConfig().then((config) => {
-      setTriggerMode(config.triggerMode)
-      setLanguage(config.language)
+      setEngine(config.engine);
+      setQuery(config.query);
     })
   }, [])
 
-  const onTriggerModeChange = useCallback(
-    (mode: TriggerMode) => {
-      setTriggerMode(mode)
-      updateUserConfig({ triggerMode: mode })
+  const onEngineChange = useCallback(
+    (engine: Engine) => {
+      setEngine(engine)
+      updateUserConfig({ engine: engine })
       setToast({ text: 'Changes saved', type: 'success' })
     },
     [setToast],
   )
 
-  const onThemeChange = useCallback(
-    (theme: Theme) => {
-      updateUserConfig({ theme })
-      props.onThemeChange(theme)
-      setToast({ text: 'Changes saved', type: 'success' })
-    },
-    [props, setToast],
-  )
-
-  const onLanguageChange = useCallback(
-    (language: Language) => {
-      updateUserConfig({ language })
-      setToast({ text: 'Changes saved', type: 'success' })
+  const onQueryChange = useCallback(
+    (query: string) => {
+      setQuery(query)
+      setQueryDirty(true);
     },
     [setToast],
   )
@@ -59,39 +48,17 @@ function OptionsPage(props: { theme: Theme; onThemeChange: (theme: Theme) => voi
           <img src={logo} className="w-10 h-10 rounded-lg" />
           <span className="font-semibold">ChatGPT for Google (v{getExtensionVersion()})</span>
         </div>
-        <div className="flex flex-row gap-3">
-          <a href="https://chatgpt-for-google.canny.io/changelog" target="_blank" rel="noreferrer">
-            Changelog
-          </a>
-          <a
-            href="https://github.com/wong2/chat-gpt-google-extension/issues"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Feedback
-          </a>
-          <a href="https://twitter.com/chatgpt4google" target="_blank" rel="noreferrer">
-            Twitter
-          </a>
-          <a
-            href="https://github.com/wong2/chat-gpt-google-extension"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Source code
-          </a>
-        </div>
       </nav>
       <main className="w-[500px] mx-auto mt-14">
         <Text h2>Options</Text>
         <Text h3 className="mt-5">
-          Trigger Mode
+          Engine
         </Text>
         <Radio.Group
-          value={triggerMode}
-          onChange={(val) => onTriggerModeChange(val as TriggerMode)}
+          value={engine}
+          onChange={(val) => onEngineChange(val as Engine)}
         >
-          {Object.entries(TRIGGER_MODE_TEXT).map(([value, texts]) => {
+          {Object.entries(ENGINE_TEXT).map(([value, texts]) => {
             return (
               <Radio key={value} value={value}>
                 {texts.title}
@@ -100,72 +67,35 @@ function OptionsPage(props: { theme: Theme; onThemeChange: (theme: Theme) => voi
             )
           })}
         </Radio.Group>
+        <Text>
+          The default OpenAi api is not there yet. Features will be developed later! 
+        </Text>
         <Text h3 className="mt-5">
-          Theme
+          Query
         </Text>
-        <Radio.Group value={props.theme} onChange={(val) => onThemeChange(val as Theme)} useRow>
-          {Object.entries(Theme).map(([k, v]) => {
-            return (
-              <Radio key={v} value={v}>
-                {k}
-              </Radio>
-            )
-          })}
-        </Radio.Group>
-        <Text h3 className="mt-5 mb-0">
-          Language
-        </Text>
-        <Text className="my-1">
-          The language used in ChatGPT response. <span className="italic">Auto</span> is
-          recommended.
-        </Text>
-        <Select
-          value={language}
-          placeholder="Choose one"
-          onChange={(val) => onLanguageChange(val as Language)}
-        >
-          {Object.entries(Language).map(([k, v]) => (
-            <Select.Option key={k} value={v}>
-              {capitalize(v)}
-            </Select.Option>
-          ))}
-        </Select>
-        <Text h3 className="mt-5 mb-0">
-          AI Provider
-        </Text>
-        <ProviderSelect />
-        <Text h3 className="mt-8">
-          Misc
-        </Text>
-        <div className="flex flex-row items-center gap-4">
-          <Toggle initialChecked disabled />
-          <Text b margin={0}>
-            Auto delete conversations generated by search
-          </Text>
-        </div>
+        <input value={query} onChange={(val)=>onQueryChange(val.target.value)} style={{width: "100%"}}/>
+        {
+          queryDirty && <Button onClick={()=>{
+            updateUserConfig({ query: query })
+            setToast({ text: 'Changes saved', type: 'success' })
+            setQueryDirty(false)
+          }}
+            style={{
+              marginTop: "1rem"
+            }}
+          >Save</Button>
+        }
       </main>
     </div>
   )
 }
 
 function App() {
-  const [theme, setTheme] = useState(Theme.Auto)
-
-  const themeType = useMemo(() => {
-    if (theme === Theme.Auto) {
-      return detectSystemColorScheme()
-    }
-    return theme
-  }, [theme])
-
-  useEffect(() => {
-    getUserConfig().then((config) => setTheme(config.theme))
-  }, [])
 
   return (
-    <GeistProvider themeType={themeType}>
+    <GeistProvider >
       <CssBaseline />
-      <OptionsPage theme={theme} onThemeChange={setTheme} />
+      <OptionsPage />
     </GeistProvider>
   )
 }

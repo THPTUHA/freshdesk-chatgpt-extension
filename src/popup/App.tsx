@@ -21,7 +21,7 @@ function App() {
     Browser.storage.local.set({ hideShortcutsTip: true })
     Browser.tabs.create({ url: 'chrome://extensions/shortcuts' })
   }, [])
-  
+
   async function openSumnarize() {
     // const tabs = await Browser.tabs.query({ active: true, currentWindow: true })
     // const res = await Browser.scripting.executeScript({
@@ -43,21 +43,21 @@ function App() {
     //     }
     //   }
     // });
-    
+
     // await Browser.runtime.sendMessage({
     //   type: 'SUMMARIZE',
     //   data: res[0].result
     // });
 
     const tabs = await Browser.tabs.query({ active: true, currentWindow: true })
-    await Browser.tabs.sendMessage(tabs[0].id??0, {type: 'OPEN_APP'})
+    await Browser.tabs.sendMessage(tabs[0].id ?? 0, { type: 'OPEN_APP' })
   }
 
   return (
     <div className="flex flex-col h-full">
       <div className="mb-2 flex flex-row items-center px-1">
         <img src={logo} className="w-5 h-5 rounded-sm" />
-        <p className="text-sm font-semibold m-0 ml-1">ChatGPT for Google</p>
+        <p className="text-sm font-semibold m-0 ml-1">FreshDesk ChatGPT</p>
         <div className="grow"></div>
         <span className="cursor-pointer leading-[0]" onClick={openOptionsPage}>
           <GearIcon size={16} />
@@ -72,9 +72,11 @@ function App() {
           for faster access.
         </p>
       )}
-      <button onClick={() => {
-              openSumnarize();
-            }}>Open app</button>
+      <button
+        className='cursor-pointer'
+        onClick={() => {
+          openSumnarize();
+        }}>Open app</button>
     </div>
   )
 }

@@ -1,46 +1,20 @@
 import { defaults } from 'lodash-es'
 import Browser from 'webextension-polyfill'
 
-export enum TriggerMode {
-  Always = 'always',
-  QuestionMark = 'questionMark',
-  Manually = 'manually',
+export enum Engine {
+  Account = 'account',
 }
 
-export const TRIGGER_MODE_TEXT = {
-  [TriggerMode.Always]: { title: 'Always', desc: 'ChatGPT is queried on every search' },
-  [TriggerMode.QuestionMark]: {
-    title: 'Question Mark',
-    desc: 'When your query ends with a question mark (?)',
-  },
-  [TriggerMode.Manually]: {
-    title: 'Manually',
-    desc: 'ChatGPT is queried when you manually click a button',
-  },
-}
-
-export enum Theme {
-  Auto = 'auto',
-  Light = 'light',
-  Dark = 'dark',
-}
-
-export enum Language {
-  Auto = 'auto',
-  English = 'english',
-  Chinese = 'chinese',
-  Spanish = 'spanish',
-  French = 'french',
-  Korean = 'korean',
-  Japanese = 'japanese',
-  German = 'german',
-  Portuguese = 'portuguese',
+export const ENGINE_TEXT = {
+  [Engine.Account]: {
+    title: 'Account',
+    desc: 'Use personal chatgpt account'
+  }
 }
 
 const userConfigWithDefaultValue = {
-  triggerMode: TriggerMode.Always,
-  theme: Theme.Auto,
-  language: Language.Auto,
+  engine: Engine.Account,
+  query: "Summarize the main idea of ​​the following conversation",
 }
 
 export type UserConfig = typeof userConfigWithDefaultValue

@@ -6,6 +6,8 @@ import rehypeHighlight from 'rehype-highlight'
 import Browser from 'webextension-polyfill'
 import { captureEvent } from '../analytics'
 import { Answer } from '../messaging'
+import { getTime, handleFreshChat, handleFreshTiket } from '../utils'
+import { getUserConfig } from '../config'
 
 export type QueryStatus = 'success' | 'error' | undefined
 
@@ -28,6 +30,7 @@ function ChatGPTQuery(props: Props) {
 
   useEffect(() => {
     setLoading(true);
+    setDone(false);
     const port = Browser.runtime.connect()
     const listener = (msg: any) => {
       setLoading(false);
@@ -35,7 +38,7 @@ function ChatGPTQuery(props: Props) {
         setAnswer(msg)
         setStatus('success')
       } else if (msg.error) {
-        if(msg.error !== 'QUESTION EMPTY'){
+        if (msg.error !== 'QUESTION EMPTY') {
           setError(msg.error)
           setStatus('error')
         }
@@ -72,51 +75,42 @@ function ChatGPTQuery(props: Props) {
     }
   }, [question, status])
 
-  const openOptionsPage = useCallback(() => {
-    Browser.runtime.sendMessage({ type: 'OPEN_OPTIONS_PAGE' })
-  }, [])
+  const summarize =async () => {
+    const config = await getUserConfig();   
+    const require = config.query + "\n";
+    const time = getTime();
 
-  const summarize = ()=>{
-    const chat = document.getElementById("aw-chat-wrapper");
-        if (chat) {
-          const messages = chat.getElementsByClassName("chat-container-wrap")
-          const data = [];
+    const qChat = handleFreshChat();
+    if(qChat){
+      const _q = time + "." + require + qChat;
+      console.log("Chat" , _q)
+      setQuestion(_q);
+      return;
+    }
 
-          for(const message of messages){
-            console.log(message)
-            let name = "", content = "";
-            if(message.children.length == 2){
-              name = message.children[0].innerHTML.replace(/<[^>]*>/g, "").replace(/\n/g, ' ').trim();
-              content =  message.children[1].getElementsByClassName("user-messages")[0].innerHTML.replace(/<[^>]*>/g, "").replace(/\n/g, ' ').trim();
-            }else if(message.children.length == 1 && data.length){
-              content = message.children[0].getElementsByClassName("user-messages")[0].innerHTML.replace(/<[^>]*>/g, "").replace(/\n/g, ' ').trim();
-            }
-            data.push({
-              name: name,
-              content: content
-            })
-          }
+    const qTicket = handleFreshTiket();
+    if(qTicket){
+      const _q = time + "." + require + qTicket;
+      console.log("Ticket" , _q)
+      setQuestion(_q);
+      return;
+    }
 
-          const require = "Tóm tắt ý chính cuộc hội thoại sau \n";
-          const q = data.map(item=> item.name + ": "+ item.content).join("\n");
-          console.log(require + q)
-          setQuestion(require + q);
-        }
+    console.log("Error", 'UNSUPPORT')
+    setError('UNSUPPORT');
   }
-  
+
   if (answer && question) {
     return (
       <div className="markdown-body gpt-markdown" id="gpt-answer" dir="auto">
         <div className="gpt-header">
-          <span className="cursor-pointer leading-[0]" onClick={openOptionsPage}>
-            <GearIcon size={14} />
-          </span>
+
         </div>
         <ReactMarkdown rehypePlugins={[[rehypeHighlight, { detect: true }]]}>
           {answer.text}
         </ReactMarkdown>
-        {done  && (
-          <button onClick={summarize}>Summarize</button>
+        {done && (
+          <button onClick={summarize} className='mt-4 bg-green-500 text-white'>Summarize</button>
         )}
       </div>
     )
@@ -141,7 +135,9 @@ function ChatGPTQuery(props: Props) {
       </p>
     )
   }
-  if (error) {
+
+
+  if (error && error !== 'UNSUPPORT') {
     return (
       <p>
         Failed to load response from ChatGPT:
@@ -154,7 +150,10 @@ function ChatGPTQuery(props: Props) {
     return <p className="text-[#b6b8ba] animate-pulse">Waiting for ChatGPT response...</p>
   }
   return (
-    <button onClick={summarize}>Summarize</button>
+    <div className='flex flex-col justify-center'>
+      {error === 'UNSUPPORT' ? <div>This website content browsing is not supported</div> : ""}
+      <button onClick={summarize} className='mt-4 bg-green-500 text-white'>Summarize</button>
+    </div>
   )
 }
 
